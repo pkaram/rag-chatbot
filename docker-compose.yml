@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  opensearch:
+    image: opensearchproject/opensearch:latest
+    container_name: opensearch-node
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node
+      - discovery.seed_hosts=opensearch-node
+      - cluster.initial_master_nodes=opensearch-node
+      - bootstrap.memory_lock=true # along with the memlock settings below, disables swapping
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m" # minimum and maximum Java heap size, recommend setting both to 50% of system RAM
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536 # maximum number of open files for the OpenSearch user, set to at least 65536 on modern systems
+        hard: 65536
+    ports:
+      - 9200:9200
+      - 9600:9600 # required for Performance Analyzer
+  
+  vectorizer:
+    container_name: text_vectorizer
+    build:
+      context: ./vectorizer
+    ports:
+      - "80:80"
+
+  llm:
+    container_name: llm_api
+    build:
+      context: ./llm
+    ports:
+      - "8080:8080"
+    depends_on:
+      - "opensearch"
+      - "vectorizer"
+
+
+networks:
+  default:
+    name: rag
